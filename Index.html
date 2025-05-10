@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Draw Quickly Now!</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: yellow;
+      overflow: hidden;
+    }
+    h1 {
+      text-align: center;
+      font-size: 3em;
+      margin-top: 20px;
+    }
+    .menu {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px;
+    }
+    .menu-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button {
+      padding: 15px;
+      font-size: 1.2em;
+      border: none;
+      cursor: pointer;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    #drawingArea, #resultScreen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+      background-color: white;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+    }
+    canvas {
+      border: 2px solid black;
+      background-color: white;
+      touch-action: none;
+    }
+    #colorPicker {
+      display: flex;
+      gap: 5px;
+      margin: 10px;
+      flex-wrap: wrap;
+    }
+    .color-option {
+      width: 30px;
+      height: 30px;
+      border: 1px solid #000;
+      cursor: pointer;
+    }
+    #timer, #themeTitle {
+      font-size: 1.5em;
+      margin: 10px;
+    }
+    #hintButton {
+      background-color: yellow;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    #hintsList {
+      position: absolute;
+      bottom: 60px;
+      left: 10px;
+      background-color: white;
+      border: 1px solid black;
+      padding: 10px;
+      display: none;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    #toolButtons {
+      display: flex;
+      gap: 10px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Draw Quickly Now!</h1>
+  <div class="menu">
+    <div class="menu-column">
+      <button onclick="startGame('Animais')">Animais</button>
+      <button onclick="startGame('Mobs Minecraft')">Mobs Minecraft</button>
+      <button onclick="startGame('Insetos')">Insetos</button>
+    </div>
+    <div class="menu-column">
+      <button onclick="startGame('Objetos')">Objetos</button>
+      <button onclick="startGame('Personagens')">Personagens</button>
+      <button onclick="startGame('Logos')">Logos</button>
+    </div>
+  </div>
+  <div id="drawingArea">
+    <div id="themeTitle"></div>
+    <div id="timer">30</div>
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <div id="colorPicker"></div>
+    <div id="toolButtons">
+      <button onclick="useEraser()">Borracha</button>
+      <button onclick="clearCanvas()">Limpar</button>
+      <button onclick="toggleHints()">Mostrar/Ocultar Dicas</button>
+      <button id="hintButton" onclick="showHint()">+ Dica</button>
+    </div>
+    <div id="hintsList"></div>
+  </div>
+  <div id="resultScreen">
+    <h2 id="answerText"></h2>
+    <h3 id="scoreDisplay"></h3>
+    <button onclick="goToMenu()">Voltar ao menu</button>
+  </div>
+  <script>
+    const themes = {
+      "Animais": ["gato", "cachorro", "elefante", "urso", "tigre", "leão", "pato", "coruja", "cavalo", "macaco", "raposa", "girafa", "zebra", "baleia", "golfinho", "tubarão", "pinguim", "águia", "papagaio", "rato"],
+      "Mobs Minecraft": ["zumbi", "esqueleto", "creeper", "aranha", "enderman", "slime", "golem", "vaca", "galinha", "porco", "aldeão", "wither", "dragão", "zoglin", "hoglin", "blaze", "magmacube", "bruxa", "afogado", "guardião"],
+      "Insetos": ["formiga", "abelha", "borboleta", "besouro", "grilo", "mosquito", "aranha", "libélula", "cigarra", "gafanhoto", "joaninha", "mariposa", "pulga", "pernilongo", "vespa", "mosca", "bicho-pau", "bicho-da-seda", "carrapato", "lacraia"],
+      "Objetos": ["relógio", "óculos", "mochila", "lápis", "cadeira", "mesa", "chave", "ventilador", "telefone", "garrafa", "livro", "controle", "sapato", "bola", "travesseiro", "panela", "microfone", "tesoura", "banco", "espelho"],
+      "Personagens": ["Mario", "Sonic", "Naruto", "Batman", "Superman", "Homem-Aranha", "Pikachu", "Goku", "Ben 10", "Bob Esponja", "Elsa", "Shrek", "Luffy", "Zoro", "Minion", "Iron Man", "Capitão América", "Hulk", "Simba", "Woody"],
+      "Logos": ["Nike", "Adidas", "Apple", "Windows", "Google", "Coca-Cola", "Pepsi", "McDonald's", "YouTube", "Instagram", "Facebook", "Twitter", "TikTok", "PlayStation", "Xbox", "Netflix", "Amazon", "Disney", "Spotify", "Snapchat"]
+    };
+
+    let currentItem = null;
+    let hintsUsed = 0;
+    let hints = [];
+    let timeLeft = 30;
+    let timerInterval;
+    let showAllHints = false;
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+    let currentColor = "black";
+
+    const colorPicker = document.getElementById("colorPicker");
+    const hintsList = document.getElementById("hintsList");
+
+    const colors = ["black", "red", "blue", "green", "purple", "orange", "brown", "pink", "gray", "cyan"];
+    colors.forEach(color => {
+      const div = document.createElement("div");
+      div.className = "color-option";
+      div.style.backgroundColor = color;
+      div.onclick = () => {
+        currentColor = color;
+        ctx.globalCompositeOperation = "source-over";
+      };
+      colorPicker.appendChild(div);
+    });
+
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mouseup", () => drawing = false);
+    canvas.addEventListener("mousemove", draw);
+
+    canvas.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      drawing = true;
+      draw(e.touches[0]);
+    });
+
+    canvas.addEventListener("touchend", () => drawing = false);
+
+    canvas.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      draw(e.touches[0]);
+    });
+
+    function startDraw() {
+      drawing = true;
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      ctx.fillStyle = currentColor;
+      ctx.beginPath();
+      ctx.arc(e.clientX - rect.left, e.clientY - rect.top, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    function useEraser() {
+      currentColor = "white";
+      ctx.globalCompositeOperation = "destination-out";
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function startGame(theme) {
+      const options = themes[theme];
+      currentItem = options[Math.floor(Math.random() * options.length)];
+      hints = generateHints(currentItem);
+      hintsUsed = 0;
+      timeLeft = 30;
+      document.querySelector(".menu").style.display = "none";
+      document.getElementById("drawingArea").style.display = "flex";
+      document.getElementById("themeTitle").textContent = theme;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hintsList.innerHTML = "";
+      hintsList.style.display = "none";
+      showAllHints = false;
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      timeLeft--;
+      document.getElementById("timer").textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        endGame();
+      }
+    }
+
+    function showHint() {
+      if (hintsUsed < hints.length) {
+        const p = document.createElement("p");
+        p.textContent = hints[hintsUsed];
+        hintsList.appendChild(p);
+        hintsList.style.display = "block";
+        hintsUsed++;
+      }
+    }
+
+    function toggleHints() {
+      showAllHints = !showAllHints;
+      hintsList.style.display = showAllHints ? "block" : "none";
+    }
+
+    function endGame() {
+      document.getElementById("drawingArea").style.display = "none";
+      document.getElementById("resultScreen").style.display = "flex";
+      document.getElementById("answerText").textContent = `Você desenhou: ${currentItem}`;
+      document.getElementById("scoreDisplay").textContent = `Pontuação: ${15 - hintsUsed}`;
+    }
+
+    function goToMenu() {
+      document.getElementById("resultScreen").style.display = "none";
+      document.querySelector(".menu").style.display = "flex";
+      hintsList.innerHTML = "";
+    }
+
+    function generateHints(item) {
+      return [
+        `Começa com a letra '${item[0]}'`,
+        `Tem ${item.length} letras`,
+        `É algo comum!`,
+        `Rima com '${item.slice(-3)}'`,
+        `Você já viu isso hoje!`,
+        `Muito presente em desenhos`,
+        `Pode aparecer em memes`,
+        `É muito conhecido`,
+        `Serve para algo interessante`,
+        `É fácil de desenhar`,
+        `É popular`,
+        `Parece simples`,
+        `Tem formato reconhecível`,
+        `Pode estar em casa`,
+        `Tem cor marcante`
+      ];
+    }
+  </script>
+</body>
+</html>
+
